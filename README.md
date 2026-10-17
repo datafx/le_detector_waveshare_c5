@@ -22,6 +22,29 @@ are identical to the XIAO build.
 
 **Attach the antenna before powering on.** Range is meaningless without it.
 
+## Assembly: fitting the antenna connector
+
+The board's antenna socket is inside the case, so the pigtail's RP-SMA end
+has to be mounted through the back. Unplug USB first.
+
+1. **Open the case.** Peel off the rubber feet on the back, then remove the
+   four screws underneath them.
+2. **Drill a 6.5mm hole in the center of the battery bay.** On the version
+   without a battery that bay is empty, so the connector and nut have room
+   there. Take the board out of the back shell before drilling so no
+   swarf ends up on it, and clean the hole afterwards.
+3. **Install the pigtail.** Push the RP-SMA bulkhead through the hole from
+   the inside and tighten its nut on the outside. Snap the right-angle IPEX
+   (U.FL) end straight down onto the module's antenna socket. Press it on
+   squarely; it's small and easy to damage if pushed at an angle.
+4. **Route the cable** so it lies flat and isn't pinched by the case, then
+   close the case, refit the four screws and stick the feet back on.
+5. **Screw the Alfa antenna onto the RP-SMA connector.**
+
+**Don't use the camera hole for the connector.** It looks like a ready-made
+opening, but there isn't enough clearance behind it: the case won't close
+with the connector mounted there.
+
 ## Build & flash
 
 PlatformIO doesn't support the ESP32-C5 yet, so this builds with the

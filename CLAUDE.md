@@ -208,6 +208,10 @@ Complete equipment list (also in README.md):
 - Alfa APA-M25 dual-band antenna (same as upstream)
 - USB-C cable
 
+Assembly (user, 2026-10-17; in README): RP-SMA bulkhead goes through a
+6.5mm hole drilled in the center of the empty battery bay (feet off, 4
+screws). The camera hole has no clearance - case won't close.
+
 **Attach the antenna before any radio testing.** Full board detail in the
 brief and `vendor/.../schematic/`.
 
