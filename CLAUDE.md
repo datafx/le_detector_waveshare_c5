@@ -83,8 +83,8 @@ Temporary probe (built with `-DTHROUGHPUT_PROBE`, since removed) reporting
   3->4, vendor autosize max 5->7, border 6->9, header 32->44). Each draw
   section flushes only its own rect; border flushed as 4 strips and only
   when its on/off state changes.
-- `alert.cpp`: buzzer GPIO removed, `alertSetBuzzer()` is a stub until
-  Phase 4. `BUZZER_ACTIVE_LOW` removed from config.
+- `alert.cpp`: buzzer GPIO removed (`alertSetBuzzer()` was a stub until
+  Phase 4 wired it to the speaker). `BUZZER_ACTIVE_LOW` removed from config.
 - Build: 1.28MB - 97% of the default 1.25MB app partition, so switched to
   `PartitionScheme=app3M_fat9M_16MB` (40%).
 - **Fixed in both repos (2026-10-16)**: `E wifi:failed to post WiFi
@@ -148,6 +148,8 @@ Bench gotchas:
 
 ## Open decisions
 
+None. Next decisions come with the road-test results (`RSSI_STRONG`, and
+whether the 2.4GHz alert drop-out needs addressing upstream).
 
 ---
 
@@ -173,15 +175,23 @@ Bench gotchas:
 
 ## Hardware
 
-Waveshare ESP32-C5-Touch-LCD-3.5-EN (ESP32-C5-WROOM-1U-N32R8, 8MB PSRAM,
-IPEX antenna - **attach before any radio testing**). Full detail in the
+Complete equipment list (also in README.md):
+
+- Waveshare ESP32-C5-Touch-LCD-3.5-EN, SKU 35416 (ESP32-C5-WROOM-1U-N32R8,
+  32MB flash, 8MB PSRAM, IPEX antenna socket; no battery, no camera)
+- Right-angle IPEX (U.FL) -> **RP-SMA** pigtail - the Alfa is RP-SMA, so a
+  plain-SMA pigtail won't mate
+- Alfa APA-M25 dual-band antenna (same as upstream)
+- USB-C cable
+
+**Attach the antenna before any radio testing.** Full board detail in the
 brief and `vendor/.../schematic/`.
 
 ### ESP32-C5 GPIO
 
 | Function | GPIO |
 |---|---|
-| I2C SDA / SCL | 27 / 26 (CH32 0x24, AXP2101 0x34, ES8311 0x18?, FT6336 0x38) |
+| I2C SDA / SCL | 27 / 26 (CH32 0x24, AXP2101 0x34, ES8311 0x18, FT6336 0x38 - see Phase 1 scan) |
 | SPI SCK / MOSI / MISO | 6 / 7 / 2 (LCD + SD shared) |
 | LCD CS / DC | 8 / 5 |
 | SD CS | 9 (unused this pass) |
@@ -237,10 +247,12 @@ FQBN: esp32:esp32:esp32c5:FlashSize=16M,PSRAM=enabled,CDCOnBoot=cdc,PartitionSch
 - Build/flash with `arduino-cli`, same as upstream.
 - Vendor repo: `vendor/ESP32-C5-Touch-LCD-3.5` (gitignored, reference only),
   **pinned at `04e6134cf3e37309b2bec9915189efeace1161bc`** (2026-09-30).
-  ES8311 driver is Espressif `esp_codec_dev` ~1.5 (a managed component, not
-  in the vendor repo and not shipped in the Arduino core) - the register
-  init must be lifted from its `es8311.c` (Apache-2.0) with
-  `use_mclk = false`.
+  ES8311 driver is Espressif `esp_codec_dev` (a managed component, not in
+  the vendor repo and not shipped in the Arduino core). Its `es8311.c` is
+  saved in `vendor/esp_codec_dev_es8311/` (gitignored, esp-adf @ `e05f54d`)
+  and flattened into `audio.cpp`.
+- Only library dependency: `Adafruit GFX Library` (+ BusIO). Everything
+  else (BLE, i2s_std, esp_lcd) ships with the core.
 - Factory firmware restore: `vendor/.../Firmware/ESP32-C5-Touch-LCD-3.5-20260911.bin`.
 
 ---
@@ -259,22 +271,25 @@ reset + backlight → SPI/display → audio (codec, I2S, amp on) → radio.
 
 **Phase 3 — Display.** *(done)* Copy detection files verbatim from upstream
 (`detector.*`, `oui_table.*`, `ssid_table.*`, `user_oui_table.cpp`, main
-phase loop). Swap the display driver (open decision), rescale `ui.cpp` to
+phase loop). Swap the display driver (decision 6), rescale `ui.cpp` to
 480×320: border, header, vendor-name autosize, RSSI bar, boot screen. Keep
 partial-redraw logic and `setTextWrap(false)`.
 
-**Phase 4 — Audio** *(done)* (`audio.cpp`): ES8311 init, `ESP_I2S` TX on 23/10/25,
+**Phase 4 — Audio** *(done)* (`audio.cpp`): ES8311 init, IDF `i2s_std` TX on 23/10/25
+(not ESP_I2S - see Phase 4 notes),
 explicit DAC volume, amp on once at boot and left on. FreeRTOS task streams
 continuously: tone when "buzzer on", zeros otherwise, few-ms fade edges to
 avoid clicks. `alert.cpp` changes only inside `alertSetBuzzer()`; all
 buzzer GPIO code removed.
 
-**Phase 5 — Integration.** Compare `detectorSeenTotal()` throughput with
-audio idle vs alerting (C5 is single-core - audio must not starve WiFi
-promiscuous). End-to-end with the `LEDET-TEST` hotspot method from
-upstream. Run acceptance checklist, then road test. Re-check
-`RSSI_STRONG` (-65, calibrated on the XIAO's antenna) against the IPEX
-antenna in the field.
+**Phase 5 — Integration.** Throughput idle vs alerting *(done - no loss)*.
+End-to-end LEDET-TEST hotspot check *(done)*. **Still to do (user, week of
+2026-10-19):** road test, and re-check `RSSI_STRONG` (-65, calibrated on the
+XIAO's antenna) against the IPEX pigtail + Alfa in the field.
+
+**Watchlist changes** go upstream first (it has `test/test_oui.cpp`), then
+get copied here - `oui_table.*`, `ssid_table.*`, `detector.*` should stay
+byte-identical across the two repos.
 
 **Future (not this project phase):** SD config/logging, GPS on UART0, touch
 (FT6336), BOOT button as alert mute (`alertMute()` already exists upstream).
