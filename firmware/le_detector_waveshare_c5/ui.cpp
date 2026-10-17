@@ -134,6 +134,7 @@ static const uint8_t HEADER_H = 44;
 static bool      s_headerEverRendered = false;
 static char      s_lastPhase[16]      = "";
 static AlertState s_lastAlertState    = ALERT_CLEAR;
+static bool      s_lastMuted          = false;
 
 static bool            s_contentEverRendered = false;
 static uint8_t          s_lastCount    = 0xFF;
@@ -144,7 +145,7 @@ static const int16_t    RSSI_REDRAW_DEADBAND = 3;
 static bool s_borderEverRendered = false;
 static bool s_lastBorderOn       = false;
 
-static void drawHeader(bool alerting, const char* phaseLabel) {
+static void drawHeader(bool alerting, bool muted, const char* phaseLabel) {
     const int16_t hx = MARGIN - 4, hy = MARGIN - 4, hw = screenW() - 2 * (MARGIN - 4);
     tft.fillRect(hx, hy, hw, HEADER_H + 1, COLOR_BG);   // +1 clears the underline
 
@@ -153,7 +154,9 @@ static void drawHeader(bool alerting, const char* phaseLabel) {
         tft.setTextColor(COLOR_TEXT);
         tft.setTextSize(3);
         tft.setCursor(MARGIN + 4, MARGIN + 6);
-        tft.print("** ALERT **");
+        // Muted is a tap-to-mute state (touch.h) - says so, so a silent
+        // alert never looks like a broken speaker.
+        tft.print(muted ? "ALERT MUTED" : "** ALERT **");
     } else {
         tft.setTextColor(COLOR_TEXT);
         tft.setTextSize(3);
@@ -254,15 +257,18 @@ void uiRender(const DetectorStatus& st, const char* phaseLabel) {
     }
 
     AlertState alertNow = alertState();
+    bool mutedNow = alertMuted();
     bool headerChanged = !s_headerEverRendered ||
                           (alertNow != s_lastAlertState) ||
+                          (mutedNow != s_lastMuted) ||
                           (strcmp(phaseLabel, s_lastPhase) != 0);
     if (headerChanged) {
         s_headerEverRendered = true;
         s_lastAlertState     = alertNow;
+        s_lastMuted          = mutedNow;
         strncpy(s_lastPhase, phaseLabel, sizeof(s_lastPhase) - 1);
         s_lastPhase[sizeof(s_lastPhase) - 1] = '\0';
-        drawHeader(alertNow == ALERT_ACTIVE, phaseLabel);
+        drawHeader(alertNow == ALERT_ACTIVE, mutedNow, phaseLabel);
     }
 
     bool rssiMoved = abs((int)st.bestRssi - (int)s_lastRssi) >= RSSI_REDRAW_DEADBAND;

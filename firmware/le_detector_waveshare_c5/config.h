@@ -132,4 +132,12 @@ static const uint8_t  LCD_MADCTL         = 0x28;
 static const uint16_t LCD_WIDTH          = 480;
 static const uint16_t LCD_HEIGHT         = 320;
 static const uint32_t LCD_SPI_HZ         = 60000000;  // vendor-proven rate
-static const uint8_t  LCD_BACKLIGHT_PCT  = 100;
+static const uint8_t  LCD_BACKLIGHT_PCT  = 100;   // day; always the level at boot
+static const uint8_t  LCD_BACKLIGHT_NIGHT_PCT = 2;   // long press toggles day/night
+
+// ---------------------------------------------------------------------------
+// Touch - whole screen is one button. Tap = mute/unmute the current alert,
+// long press = day/night backlight.
+// ---------------------------------------------------------------------------
+static const uint32_t TOUCH_POLL_MS       = 20;
+static const uint32_t TOUCH_LONG_PRESS_MS = 800;

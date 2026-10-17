@@ -23,6 +23,12 @@ void alertUpdate(const DetectorStatus& st, uint32_t holdMs);
 // this alert instance clears - the next alert starts unmuted.
 void alertMute();
 
+// Tap-to-mute: mutes the active alert, or unmutes it if already muted. Same
+// lifetime as alertMute() - a no-op while clear, and the mute is dropped
+// when the alert clears (ALERT_HOLD_MS after the last sighting).
+void alertToggleMute();
+bool alertMuted();
+
 AlertState alertState();
 uint32_t   alertPeriodMs();   // current flash period, for the UI
 bool       alertOutputOn();   // current on/off phase, for the UI

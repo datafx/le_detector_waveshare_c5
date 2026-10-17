@@ -87,6 +87,12 @@ void alertMute() {
     if (s_state == ALERT_ACTIVE) s_muted = true;
 }
 
+void alertToggleMute() {
+    if (s_state == ALERT_ACTIVE) s_muted = !s_muted;
+}
+
+bool alertMuted() { return s_muted; }
+
 AlertState alertState()     { return s_state; }
 uint32_t   alertPeriodMs()  { return s_period; }
 bool       alertOutputOn()  { return s_outputOn; }

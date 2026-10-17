@@ -17,9 +17,9 @@
     sweeps rather than every cycle. See config.h for the reasoning and the
     tunable constants.
 
-    No physical buttons in this design (config lives on the SD card, not yet
-    built - see CLAUDE.md) - the schedule always runs on its own, no manual
-    override.
+    The touchscreen is one whole-screen button: tap mutes/unmutes the current
+    alert (the mute ends when the alert clears), long press toggles day/night
+    backlight. The scan schedule always runs on its own, no manual override.
 */
 
 #include <Arduino.h>
@@ -29,6 +29,7 @@
 #include "detector.h"
 #include "alert.h"
 #include "ui.h"
+#include "touch.h"
 
 enum Phase : uint8_t { PHASE_WIFI_5G, PHASE_WIFI_2G, PHASE_BLE };
 
@@ -37,6 +38,7 @@ static uint32_t s_phaseStart     = 0;
 static uint32_t s_lastUi         = 0;
 static uint8_t  s_sweepsSinceBle = 0;
 static uint8_t  s_sweepsSince2G  = 0;
+static bool     s_nightBacklight = false;
 
 static const char* phaseLabel(Phase p) {
     switch (p) {
@@ -95,6 +97,7 @@ void setup() {
     // detection never depends on audio.
     audioInit();
     alertInit();
+    if (!touchInit()) Serial.println("ERROR: FT6336 touch init failed");
     detectorInit();
 
     switchToPhase(PHASE_WIFI_5G);
@@ -128,6 +131,19 @@ void loop() {
     }
 
     detectorExpire();
+
+    // Before alertUpdate() so a tap silences the chirp on this same pass.
+    switch (touchPoll()) {
+        case TOUCH_TAP:
+            alertToggleMute();
+            break;
+        case TOUCH_LONG:
+            s_nightBacklight = !s_nightBacklight;
+            boardSetBacklight(s_nightBacklight ? LCD_BACKLIGHT_NIGHT_PCT : LCD_BACKLIGHT_PCT);
+            break;
+        default:
+            break;
+    }
 
     DetectorStatus st = detectorStatus();
     alertUpdate(st, ALERT_HOLD_MS);

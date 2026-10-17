@@ -100,8 +100,22 @@ A boot screen with watchlist sizes for 5 seconds, then the main screen:
   faster as the signal gets stronger.
 - The alert holds for 14 seconds after the last sighting, then clears.
 
+### Touchscreen
+
+The whole screen is one button, so there's nothing to aim at while driving:
+
+- **Tap** during an alert to mute the speaker. The border keeps flashing and
+  the header changes to `ALERT MUTED`. Tap again to unmute. The mute only
+  lasts for that alert: once it clears, the next alert chirps again. Taps
+  while nothing is alerting do nothing, so you can't mute ahead of time.
+- **Press and hold** (about 1 second) to switch between day (full) and night
+  (2%) brightness. It changes while your finger is still down. Every boot
+  starts at full brightness.
+
 To check the alert path without real gear, broadcast a WiFi network named
-`LEDET-TEST` from a phone or laptop. It's a built-in test entry.
+`LEDET-TEST` from a phone or laptop. It's a built-in test entry. A phone
+hotspot works best: some laptop WiFi cards beacon irregularly in hotspot
+mode, so a 2.4GHz laptop hotspot may alert once and then only now and then.
 
 ## Watchlist
 
@@ -181,15 +195,16 @@ starting points to tune, not a measured optimum.
 - **Directed probe requests are fading.** Modern phones mostly send
   wildcard probes with no SSID, so probe-based SSID matching mainly catches
   older or embedded devices. Beacon matching is unaffected.
-- **No SD card, GPS or touch yet.** The board has a microSD slot and a
-  touchscreen; neither is used. The watchlists are compiled in.
+- **No SD card or GPS yet.** The board's microSD slot isn't used; the
+  watchlists are compiled in and nothing is logged.
 
 ## Tuning
 
 Everything is in `firmware/le_detector_waveshare_c5/config.h`: band and
 channel lists, sweep cadence, the RSSI range that maps to slow/fast
 flashing (`RSSI_WEAK`/`RSSI_STRONG`), flash rates, alert hold time, speaker
-pitch and volume, and `BUZZER_ENABLED` to silence the speaker for bench
+pitch and volume, day/night backlight levels (`LCD_BACKLIGHT_PCT`,
+`LCD_BACKLIGHT_NIGHT_PCT`), long-press time (`TOUCH_LONG_PRESS_MS`), and `BUZZER_ENABLED` to silence the speaker for bench
 testing.
 
 ## License
@@ -202,8 +217,8 @@ Exceptions, each marked in its file header:
 - [`detector.cpp`](firmware/le_detector_waveshare_c5/detector.cpp) has
   portions adapted from [nyanBOX](https://github.com/jbohack/nyanBOX)
   under MIT.
-- The ST7796 init sequence and IO-expander protocol (`display.cpp`,
-  `board.cpp`) are adapted from
+- The ST7796 init sequence, IO-expander protocol and touch register use
+  (`display.cpp`, `board.cpp`, `touch.cpp`) are adapted from
   [Waveshare's examples](https://github.com/waveshareteam/ESP32-C5-Touch-LCD-3.5),
   and the ES8311 register sequence (`audio.cpp`) from Espressif's
   esp_codec_dev. Both are Apache-2.0.

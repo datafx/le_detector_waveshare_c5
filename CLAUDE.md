@@ -12,15 +12,17 @@ upstream code disagree, **the code wins** (see "Brief corrections" below).
 
 ---
 
-## Status (2026-10-16)
+## Status (2026-10-17)
 
 **Phases 0-4 complete - working unit.** Detector runs on the Waveshare
 board with the rescaled UI and speaker alerts, all user-verified on the
 physical unit 2026-10-16. Repo: public at
 https://github.com/datafx/le_detector_waveshare_c5 (`origin`), `upstream` =
 le_detector_c5. Phase 5 throughput check done (below).
+Touch added 2026-10-17 (decisions 9-10): tap = mute/unmute, long press =
+day/night backlight - user-verified on the unit.
 Remaining: road test + RSSI_STRONG re-check with the IPEX antenna - user
-will do these the week of 2026-10-19.
+will do these the week of 2026-10-19 - and trying the MagSafe mount.
 
 ### Phase 5 throughput check (2026-10-16)
 
@@ -65,7 +67,11 @@ Temporary probe (built with `-DTHROUGHPUT_PROBE`, since removed) reporting
   changed. Chirp is level-driven from the main loop exactly as upstream.
 - Bench result (LEDET-TEST hotspot from this PC, `nmcli device wifi hotspot
   ifname wlan0 ...`, ch1; wlan0 auto-reconnects to its usual network after; wired
-  ethernet keeps the session up): **user - "works perfectly. volume and
+  ethernet keeps the session up. **Caveat (2026-10-17):** this PC's Intel
+  iwlwifi beacons irregularly in AP mode - a temp per-channel probe saw 10-38
+  other frames per 250ms ch1 dwell but only 0-2 from the laptop, so most
+  2.4GHz visits miss it. Firmware fine; use a phone hotspot when a test
+  needs repeated alerts): **user - "works perfectly. volume and
   pitch are exactly what I want. no clicks or audio glitches."** No pop at
   boot, no idle hiss, chirps in sync with the border.
 
@@ -145,11 +151,29 @@ Bench gotchas:
    Claude with user's go-ahead 2026-10-16.
 7. **Speaker tone locked**: 2400Hz sine, amplitude 16384 (-6dBFS), ES8311
    DAC volume 0xBF (0dB). User-approved by ear 2026-10-16.
+8. **2.4GHz alert drop-out accepted** (user, after road testing): 2.4GHz-only
+   targets alerting on and off is not a problem. Focus stays on 5GHz. Revisit
+   only if it becomes a concern.
+9. **Touch = whole-screen button, no coordinates** (user, 2026-10-17). Tap
+   toggles mute on the active alert (`alertToggleMute()`); the mute keeps
+   upstream's `alertMute()` lifetime - no-op while clear, dropped when the
+   alert clears, so the next alert is always audible. Header reads
+   `ALERT MUTED` while muted. Taps need two consecutive 20ms "touched"
+   reads (stray-report filter).
+10. **Brightness = long press (800ms) toggles day 100% / night 2%**
+    (Claude's pick, user left it open 2026-10-17). Not persisted: every
+    boot starts at day level, since a dim screen after a daytime reboot is
+    worse than a bright one after a night reboot. No light sensor on board,
+    so no auto-dimming.
 
 ## Open decisions
 
-None. Next decisions come with the road-test results (`RSSI_STRONG`, and
-whether the 2.4GHz alert drop-out needs addressing upstream).
+- `RSSI_STRONG` re-check against the IPEX pigtail + Alfa (road-test data).
+- Windshield mounting: MagSafe-style magnetic mount ordered to try first
+  (2026-10-17). Check: ring clears the rear RP-SMA, mount is non-charging
+  (a Qi coil heats the steel ring), adhesive holds in summer heat. Ball
+  stud through the empty camera hole ruled out for now - not enough room
+  inside the case behind it.
 
 ---
 
@@ -291,8 +315,9 @@ XIAO's antenna) against the IPEX pigtail + Alfa in the field.
 get copied here - `oui_table.*`, `ssid_table.*`, `detector.*` should stay
 byte-identical across the two repos.
 
-**Future (not this project phase):** SD config/logging, GPS on UART0, touch
-(FT6336), BOOT button as alert mute (`alertMute()` already exists upstream).
+**Future (not this project phase):** SD config/logging (+ an on-screen
+detection history), GPS on UART0. Touch mute/brightness done (decisions
+9-10), so the BOOT-button mute is no longer needed.
 
 ### Acceptance (this pass)
 
