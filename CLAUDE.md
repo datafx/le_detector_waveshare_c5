@@ -320,7 +320,31 @@ get copied here - `oui_table.*`, `ssid_table.*`, `detector.*` should stay
 byte-identical across the two repos.
 
 **Future (not this project phase):** SD config/logging (+ an on-screen
-detection history), GPS on UART0. Touch mute/brightness done (decisions
+detection history), optional GPS.
+
+**GPS purpose - settled by user 2026-10-17, don't re-ask:** (1) logging -
+lat/lon on every hit in the SD log; (2) **lockout areas** - suppress alerts
+inside user-defined zones to stop repeat false alarms from known fixed gear.
+Requirements: optional (device works identically with no GPS attached -
+auto-detected, no setting), self-contained module with built-in antenna,
+plugs into the back header J3 with no custom PCB. GPS work is done with/after
+SD, since both uses need storage. J3 pinout (schematic): 1 VBUS, 29/30 GND,
+31/32 3V3, 25/27 I2C SCL/SDA (shared bus), 26/28 U0TXD/U0RXD (GPIO11/12 via
+0R selectors R56/R59 - camera vs header, unverified on -EN; check with a
+26<->28 loopback), 15/17 GPIO0/1 (via R55/R58, same caveat).
+
+**GPS hardware - chosen option (2026-10-17, not yet bought):** I2C, not
+UART - sidesteps the unverified R56/R59 straps and the ROM boot log on
+UART0, and allows auto-detect by probing the bus at boot.
+- SparkFun GPS Breakout - Chip Antenna, SAM-M10Q (Qwiic), GPS-21834, ~$52.
+  u-blox M10, built-in chip antenna, backup battery, I2C addr 0x42 (no
+  clash with the board's 0x18/0x24/0x34/0x38/0x51/0x6B/0x70).
+- SparkFun Flexible Qwiic Cable - Breadboard Jumper (4-pin), PRT-17912.
+  Male pins into J3: 25 SCL, 27 SDA, 29 GND, 31 3V3 (adjacent, one row).
+- Budget alternative: Adafruit Mini GPS PA1010D (STEMMA QT, I2C 0x10,
+  ~$30; weaker antenna). UART-only modules (Beitian BN-220 etc.) rejected.
+- Breakout pull-ups parallel the board's; cut its jumper if bus issues.
+  First step when it arrives: a bench sketch reporting address + fix. Touch mute/brightness done (decisions
 9-10), so the BOOT-button mute is no longer needed.
 
 ### Acceptance (this pass)
