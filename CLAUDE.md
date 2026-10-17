@@ -16,8 +16,9 @@ upstream code disagree, **the code wins** (see "Brief corrections" below).
 
 **Phases 0-4 complete - working unit.** Detector runs on the Waveshare
 board with the rescaled UI and speaker alerts, all user-verified on the
-physical unit 2026-10-16. Repo: `main`, `upstream` remote; first
-commit made 2026-10-16, no GitHub remote yet. Phase 5 throughput check done (below).
+physical unit 2026-10-16. Repo: public at
+https://github.com/datafx/le_detector_waveshare_c5 (`origin`), `upstream` =
+le_detector_c5. Phase 5 throughput check done (below).
 Remaining: road test + RSSI_STRONG re-check with the IPEX antenna - user
 will do these the week of 2026-10-19.
 
@@ -147,7 +148,6 @@ Bench gotchas:
 
 ## Open decisions
 
-- **GitHub remote** for this repo - name/visibility not yet decided.
 
 ---
 
