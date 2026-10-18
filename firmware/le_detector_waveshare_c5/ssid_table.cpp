@@ -114,6 +114,16 @@ static const SsidEntry SSID_TABLE[] = {
 static const uint16_t SSID_TABLE_SIZE =
     sizeof(SSID_TABLE) / sizeof(SSID_TABLE[0]);
 
+// Waveshare port: the table actually searched - the built-in one unless
+// ssidSetTable() swapped in an SD card list.
+static const SsidEntry* s_table = SSID_TABLE;
+static uint16_t         s_count = SSID_TABLE_SIZE;
+
+void ssidSetTable(const SsidEntry* table, uint16_t count) {
+    s_table = table;
+    s_count = count;
+}
+
 static char lowerAscii(char c) {
     return (c >= 'A' && c <= 'Z') ? (char)(c + 32) : c;
 }
@@ -141,8 +151,8 @@ static bool ciContains(const char* text, const char* pattern) {
 const SsidEntry* ssidLookup(const char* ssid) {
     if (!ssid || ssid[0] == '\0') return nullptr;
 
-    for (uint16_t i = 0; i < SSID_TABLE_SIZE; i++) {
-        const SsidEntry& e = SSID_TABLE[i];
+    for (uint16_t i = 0; i < s_count; i++) {
+        const SsidEntry& e = s_table[i];
         bool hit;
         switch (e.mode) {
         case SSID_MATCH_PREFIX:
@@ -150,6 +160,9 @@ const SsidEntry* ssidLookup(const char* ssid) {
             break;
         case SSID_MATCH_CONTAINS:
             hit = ciContains(ssid, e.pattern);
+            break;
+        case SSID_MATCH_EXACT:
+            hit = ciMatchAt(ssid, e.pattern) && strlen(ssid) == strlen(e.pattern);
             break;
         case SSID_MATCH_PREFIX_AND_CONTAINS:
         default:
@@ -164,4 +177,4 @@ const SsidEntry* ssidLookup(const char* ssid) {
     return nullptr;
 }
 
-uint16_t ssidTableSize() { return SSID_TABLE_SIZE; }
+uint16_t ssidTableSize() { return s_count; }

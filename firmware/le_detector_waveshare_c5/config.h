@@ -3,6 +3,21 @@
 #include <Arduino.h>
 
 // ---------------------------------------------------------------------------
+// Runtime-tunable settings
+//
+// TUNABLE(type, NAME, default) declares NAME as a global variable (defined
+// in settings.cpp, starting at its default) instead of a compile-time
+// constant, so /ledet/config.txt on the SD card can override it at boot
+// (settings.cpp has the key names and allowed ranges). The names are the
+// ones upstream uses, which keeps detector.cpp byte-identical with
+// le_detector_c5. NAME_DEFAULT stays available as the stock value.
+// Everything not declared with TUNABLE is fixed at build time.
+// ---------------------------------------------------------------------------
+#define TUNABLE(type, name, value) \
+    extern type name;              \
+    static const type name##_DEFAULT = value;
+
+// ---------------------------------------------------------------------------
 // Hardware pins - Waveshare ESP32-C5-Touch-LCD-3.5 (schematic + vendor BSP,
 // confirmed on the bench 2026-10-16). Replaced wholesale from the XIAO
 // build: every old pin number is a different peripheral on this board.
@@ -22,7 +37,9 @@ static const uint8_t PIN_LCD_DC   = 5;
 // hang off the CH32V006 IO expander (I2C 0x24). See board.h.
 
 // No PIN_LED - the screen border flashes instead (decision: "No status LED").
-// No buttons in use (BOOT on GPIO28 is free for a future mute).
+// BOOT button (active low): starts/stops a research capture (capture.h).
+// Only read after boot - holding it at power-on still enters download mode.
+static const uint8_t PIN_BOOT_BUTTON = 28;
 
 // ---------------------------------------------------------------------------
 // Radio scheduling - three-band phase machine
@@ -50,25 +67,34 @@ static const uint8_t PIN_LCD_DC   = 5;
 //   not a mobile one) - kept only as a rare token check on the 3
 //   non-overlapping channels (1/6/11), not a full 1-11 sweep.
 // ---------------------------------------------------------------------------
-static const uint8_t WIFI_5G_CHANNELS[]  = {36, 40, 44, 48, 149, 153, 157, 161, 165};
-static const uint8_t WIFI_5G_CHANNEL_COUNT = sizeof(WIFI_5G_CHANNELS) / sizeof(WIFI_5G_CHANNELS[0]);
-static const uint32_t WIFI_5G_PHASE_MS   = 2700;  // exactly one sweep of 9 channels at 300ms hop
-static const uint32_t WIFI_5G_HOP_MS     = 300;
+// Channel lists are runtime arrays too (config.txt can replace them), up to
+// MAX_SCAN_CHANNELS each. *_DEFAULT_LIST is the stock list.
+static const uint8_t MAX_SCAN_CHANNELS = 24;
+
+#define WIFI_5G_CHANNELS_DEFAULT_LIST 36, 40, 44, 48, 149, 153, 157, 161, 165
+extern uint8_t WIFI_5G_CHANNELS[MAX_SCAN_CHANNELS];
+extern uint8_t WIFI_5G_CHANNEL_COUNT;
+// Phase length is always exactly one sweep (channel count x hop), recomputed
+// whenever config.txt changes either - not a key of its own.
+TUNABLE(uint32_t, WIFI_5G_PHASE_MS, 2700)   // one sweep of 9 channels at 300ms hop
+TUNABLE(uint32_t, WIFI_5G_HOP_MS, 300)
 
 // Non-overlapping US channels only - a token check for stationary facility
 // APs, not a mobile detection path. See note above.
-static const uint8_t WIFI_2G_CHANNELS[]  = {1, 6, 11};
-static const uint8_t WIFI_2G_CHANNEL_COUNT = sizeof(WIFI_2G_CHANNELS) / sizeof(WIFI_2G_CHANNELS[0]);
-static const uint32_t WIFI_2G_PHASE_MS    = 750;  // one pass of 3 channels at 250ms hop
-static const uint32_t WIFI_2G_HOP_MS      = 250;
+#define WIFI_2G_CHANNELS_DEFAULT_LIST 1, 6, 11
+extern uint8_t WIFI_2G_CHANNELS[MAX_SCAN_CHANNELS];
+extern uint8_t WIFI_2G_CHANNEL_COUNT;
+TUNABLE(uint32_t, WIFI_2G_PHASE_MS, 750)    // one pass of 3 channels at 250ms hop
+TUNABLE(uint32_t, WIFI_2G_HOP_MS, 250)
 
-static const uint32_t BLE_PHASE_MS        = 400;  // short dip, not a long window
+TUNABLE(uint32_t, BLE_PHASE_MS, 400)        // short dip, not a long window
 
 // How many 5GHz sweeps happen between a BLE dip / a 2.4GHz token visit.
 // Tune these empirically - the right split is still unknown, this is a
 // starting point based on the reasoning above, not a measured optimum.
-static const uint8_t BLE_EVERY_N_SWEEPS      = 3;
-static const uint8_t WIFI_2G_EVERY_N_SWEEPS  = 8;
+// 0 = never visit that band (e.g. 5GHz-only highway use).
+TUNABLE(uint8_t, BLE_EVERY_N_SWEEPS, 3)
+TUNABLE(uint8_t, WIFI_2G_EVERY_N_SWEEPS, 8)
 
 // Passive = receive only, we never transmit. Set false only if you
 // specifically want active BLE scanning (locked decision: stays passive).
@@ -93,32 +119,39 @@ static const uint8_t  RSSI_EMA_DEN      = 3;     //   value = (new*1 + old*2)/3
 // (any matched device, not just the one that originally tripped the alert),
 // never a latch. Three-phase mode needs enough slack to survive a full
 // 5GHz->2.4GHz->BLE round trip plus missed-frame margin.
-static const uint32_t ALERT_HOLD_MS       = 14000;
+TUNABLE(uint32_t, ALERT_HOLD_MS, 14000)
 
-static const int8_t   RSSI_WEAK         = -95;   // maps to the slowest flash
+TUNABLE(int8_t, RSSI_WEAK, -95)         // maps to the slowest flash
 // -45 was an assumed ceiling, never measured. Field data: parked right next
 // to real target vehicles tops out around -65 to -60 dBm (embedded, modest-
 // power radios read through a vehicle body/window, not free-space range) -
 // -45 was never reachable in practice, so the bar/flash rate never hit full
 // scale. -65 is now "as strong as it gets" - full bar, fastest flash.
-static const int8_t   RSSI_STRONG       = -65;   // maps to the fastest flash
-static const uint32_t FLASH_PERIOD_SLOW = 1000;  // ms, full on+off cycle
-static const uint32_t FLASH_PERIOD_FAST = 150;
+TUNABLE(int8_t, RSSI_STRONG, -65)       // maps to the fastest flash
+TUNABLE(uint32_t, FLASH_PERIOD_SLOW, 1000)  // ms, full on+off cycle
+TUNABLE(uint32_t, FLASH_PERIOD_FAST, 150)
+
+// Matches weaker than this still show on screen (and get logged) but don't
+// start or hold an alert - for ignoring distant gear. MIN_ALERT_RSSI_OFF
+// (the default) disables the filter.
+static const int16_t MIN_ALERT_RSSI_OFF = -128;
+TUNABLE(int16_t, MIN_ALERT_RSSI, MIN_ALERT_RSSI_OFF)
 
 // Buzzer follows the border flash exactly, but capped so a fast flash chirps
 // instead of droning. Set to a large value to make it perfectly 1:1.
-static const uint32_t BUZZER_MAX_ON_MS  = 70;
+TUNABLE(uint32_t, BUZZER_MAX_ON_MS, 70)
 
 // Set false to run silently (bench testing without the noise). "Buzzer" is
 // now the onboard speaker (ES8311 + NS4150B) - name kept from upstream.
-static const bool BUZZER_ENABLED = true;
+TUNABLE(bool, BUZZER_ENABLED, true)
 
-// Speaker chirp. Starting values, tuned on the bench by ear. Loudness is
+// Speaker chirp, tuned on the bench by ear (decision 7). Loudness is
 // AUDIO_DAC_VOLUME (ES8311 reg 0x32: 0xBF = 0dB, 0.5dB/step, 0xFF = +32dB)
-// times AUDIO_TONE_AMPLITUDE (of 32767 full scale).
-static const uint32_t AUDIO_TONE_HZ        = 2400;   // near a piezo buzzer's pitch
+// times AUDIO_TONE_AMPLITUDE (of 32767 full scale). config.txt sets pitch
+// and volume (in dB, relative to 0xBF); amplitude stays fixed.
+TUNABLE(uint32_t, AUDIO_TONE_HZ, 2400)      // near a piezo buzzer's pitch
 static const int16_t  AUDIO_TONE_AMPLITUDE = 16384;  // -6dBFS
-static const uint8_t  AUDIO_DAC_VOLUME     = 0xBF;   // 0dB
+TUNABLE(uint8_t, AUDIO_DAC_VOLUME, 0xBF)    // 0dB
 
 // ---------------------------------------------------------------------------
 // Display
@@ -127,13 +160,19 @@ static const uint32_t UI_REFRESH_MS = 200;
 
 // ST7796 native is 320x480 portrait; we run landscape like upstream's
 // setRotation(1). MADCTL 0x28 = MV|BGR (landscape); 0xE8 = MV|MX|MY|BGR is
-// the same landscape rotated 180 degrees - flip if the image is upside down.
+// the same landscape rotated 180 degrees, for mounting the unit upside down.
 static const uint8_t  LCD_MADCTL         = 0x28;
+static const uint8_t  LCD_MADCTL_FLIPPED = 0xE8;
+TUNABLE(bool, LCD_FLIP, false)
 static const uint16_t LCD_WIDTH          = 480;
 static const uint16_t LCD_HEIGHT         = 320;
 static const uint32_t LCD_SPI_HZ         = 60000000;  // vendor-proven rate
-static const uint8_t  LCD_BACKLIGHT_PCT  = 100;   // day; always the level at boot
-static const uint8_t  LCD_BACKLIGHT_NIGHT_PCT = 2;   // long press toggles day/night
+TUNABLE(uint8_t, LCD_BACKLIGHT_PCT, 100)        // day; always the level at boot
+TUNABLE(uint8_t, LCD_BACKLIGHT_NIGHT_PCT, 2)    // long press toggles day/night
+TUNABLE(uint32_t, BOOT_SCREEN_MS, 5000)
+
+// Research capture length (BOOT button; pressing again stops early).
+TUNABLE(uint32_t, CAPTURE_MS, 180000)
 
 // ---------------------------------------------------------------------------
 // Touch - whole screen is one button. Tap = mute/unmute the current alert,

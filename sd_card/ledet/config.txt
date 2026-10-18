@@ -1,0 +1,101 @@
+# le_detector settings
+#
+# Every setting below is commented out (#) and shows its STOCK DEFAULT.
+# To change one, remove the # at the start of its line and edit the value.
+# To go back to stock, put the # back (or copy the line from the original
+# file in the repo: sd_card/ledet/config.txt). Uncommenting a line without
+# changing it gives exactly the stock behaviour.
+#
+# A line with a mistake (unknown setting, bad or out-of-range value) is
+# ignored and its default used instead. The boot screen shows how many lines
+# were bad, and /ledet/errors.txt lists them.
+#
+# Delete this file (or leave everything commented out) for stock firmware.
+
+# --- Speaker ------------------------------------------------------------------
+
+# Alert chirp on/off. off = screen flash only.
+#speaker = on
+
+# Loudness in dB relative to stock (-60 to 32). Negative is quieter.
+# Large positive values can distort.
+#volume_db = 0
+
+# Chirp pitch in Hz (200 to 8000).
+#pitch_hz = 2400
+
+# Longest a single chirp lasts, in ms (10 to 1000). Each chirp follows the
+# border flash but is cut off at this length.
+#chirp_ms = 70
+
+# --- Display ------------------------------------------------------------------
+
+# Backlight in percent (1 to 100). The screen always starts at day level;
+# press and hold the screen to switch between day and night.
+#day_brightness = 100
+#night_brightness = 2
+
+# Turn the image upside down, for mounting the unit with USB on the left.
+#flip_screen = off
+
+# How long the boot screen stays up, in seconds (0 to 30).
+#boot_screen_seconds = 5
+
+# --- Alerts -------------------------------------------------------------------
+
+# Signal range in dBm that maps to the slowest (rssi_weak) and fastest
+# (rssi_strong) flash and to an empty/full signal bar (-120 to 0).
+# rssi_weak must be lower than rssi_strong.
+#rssi_weak = -95
+#rssi_strong = -65
+
+# Ignore matches weaker than this (dBm, -120 to 0, or off). They still show
+# on screen but don't start an alert. Useful against distant gear.
+#min_rssi = off
+
+# Seconds an alert stays up after the last sighting (1 to 600).
+#alert_hold = 14
+
+# Border flash period in ms at weakest / strongest signal (50 to 5000).
+# flash_fast must not be higher than flash_slow.
+#flash_slow = 1000
+#flash_fast = 150
+
+# --- Research capture ---------------------------------------------------------
+#
+# Press the BOOT button to record everything the scanner hears (WiFi
+# management frames to a .pcap for Wireshark/Kismet, BLE adverts to a .csv)
+# into /ledet/captures. Press again to stop early.
+
+# How long one capture runs, in minutes (1 to 30).
+#capture_minutes = 3
+
+# --- Scan schedule ------------------------------------------------------------
+#
+# The radio listens to one band at a time. It sweeps 5GHz continuously, and
+# every few sweeps dips into BLE and 2.4GHz. Changing this changes what the
+# device can see - when in doubt, leave it alone.
+
+# 5GHz channels to sweep, in order. Allowed: 36-64 and 100-144 (steps of
+# 4), 149-165 (steps of 4). Stock skips the DFS channels 52-144.
+#wifi5g_channels = 36, 40, 44, 48, 149, 153, 157, 161, 165
+
+# Time on each 5GHz channel, in ms (50 to 2000).
+#wifi5g_hop_ms = 300
+
+# 2.4GHz channels for the occasional check (1 to 13).
+#wifi2g_channels = 1, 6, 11
+
+# Time on each 2.4GHz channel, in ms (50 to 2000).
+#wifi2g_hop_ms = 250
+
+# Check 2.4GHz once every this many 5GHz sweeps (0 to 100). 0 = never.
+#wifi2g_every = 8
+
+# BLE listening window in ms (100 to 5000), and how often: once every this
+# many 5GHz sweeps (0 to 100). 0 = never.
+#ble_window_ms = 400
+#ble_every = 3
+
+# For 5GHz only (e.g. highway driving), set both wifi2g_every and ble_every
+# to 0.

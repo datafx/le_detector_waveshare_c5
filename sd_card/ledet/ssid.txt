@@ -1,0 +1,26 @@
+# le_detector SSID watchlist - version: 2026-10-17
+#
+# One entry per line:  pattern, label
+#   ABC*      network name starts with ABC
+#   *ABC*     network name contains ABC
+#   ABC*DEF*  starts with ABC, and DEF appears somewhere after that
+#   ABC       network name is exactly ABC
+# Matching ignores upper/lower case. A pattern can't contain a comma.
+# Keep patterns specific: a short one like *PSP* matched pet stores and
+# homes in real survey data.
+# Lines starting with # are ignored; "# ..." entries are examples or
+# disabled by default.
+#
+# Copying this file to the card's /ledet folder REPLACES the firmware's
+# built-in SSID list. As shipped it matches the built-in list exactly.
+# Delete the file (or leave no active lines) to go back to the built-in list.
+
+PSP-MVR*, PSP in-car video
+SP-MVR*, PSP paired virtual AP
+PSP-TEST*, PSP facility
+PSPWLAN*, PSP facility
+PSP_UC*, PSP facility voice
+LEDET-TEST*, TEST/DEMO SSID - not real gear
+# IBR900-*, CradlePoint IBR900
+# IBR1700-*, CradlePoint IBR1700
+# IBR*-mobile*, CradlePoint IBR (mobile)

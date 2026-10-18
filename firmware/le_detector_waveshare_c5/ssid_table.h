@@ -17,10 +17,15 @@
 //                                 two-literals-with-a-gap shape a glob would
 //                                 write as "IBR*-mobile". Requires both
 //                                 fields set on the row.
+//
+// SSID_MATCH_EXACT              - (Waveshare port) whole SSID equals
+//                                 `pattern`. Only produced by SD card
+//                                 watchlists (a pattern with no `*`).
 enum SsidMatchMode : uint8_t {
     SSID_MATCH_PREFIX = 0,
     SSID_MATCH_CONTAINS,
-    SSID_MATCH_PREFIX_AND_CONTAINS
+    SSID_MATCH_PREFIX_AND_CONTAINS,
+    SSID_MATCH_EXACT
 };
 
 struct SsidEntry {
@@ -44,4 +49,8 @@ struct SsidEntry {
 // probe or a hidden-SSID beacon.
 const SsidEntry* ssidLookup(const char* ssid);
 
-uint16_t ssidTableSize();
+uint16_t ssidTableSize();   // entries in the active table
+
+// Waveshare port: replace the built-in table with one loaded from the SD
+// card. `table` must stay valid forever. Call before scanning starts.
+void ssidSetTable(const SsidEntry* table, uint16_t count);

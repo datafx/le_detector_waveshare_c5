@@ -21,6 +21,10 @@ https://github.com/datafx/le_detector_waveshare_c5 (`origin`), `upstream` =
 le_detector_c5. Phase 5 throughput check done (below).
 Touch added 2026-10-17 (decisions 9-10): tap = mute/unmute, long press =
 day/night backlight - user-verified on the unit.
+**SD card support added 2026-10-17** (see "SD project" under Plan):
+config.txt (22 settings), SD watchlists (oui.txt/ssid.txt replace built-in),
+BOOT-button research capture (pcap + BLE csv). All verified on the unit.
+Hit log was designed then dropped. README documents it all.
 Remaining: road test + RSSI_STRONG re-check with the IPEX antenna - user
 will do these the week of 2026-10-19 - and trying the MagSafe mount.
 
@@ -115,7 +119,7 @@ The board on `/dev/ttyACM0` is the Waveshare (esptool: ESP32-C5 rev v1.2,
 | `bench/01_i2c_scan` | PASS - 0x18 ES8311, 0x24 CH32, 0x34 AXP2101, 0x38 FT6336, 0x51 PCF85063, 0x6B QMI8658, 0x70 SHTC3. ES8311 chip ID `83 11` at 0x18 |
 | `01_exio` | PASS - CH32 accepts all writes |
 | `07_lvgl_demo` | PASS (user visual) - correct image, colors, orientation; backlight PWM works |
-| `03_SD_Card` | skipped - SD deferred (decision 1) |
+| `03_SD_Card` | not run - vendor example formats the card on any mount failure. SD slot confirmed working later (R57 strapped to the slot) |
 
 Bench gotchas:
 - `arduino-cli monitor` prints nothing when run without a TTY. Read serial
@@ -322,8 +326,147 @@ byte-identical across the two repos.
 **Future (not this project phase):** SD config/logging (+ an on-screen
 detection history), optional GPS.
 
+**SD project (2026-10-17) - built and verified; decisions below are what it implements:**
+card = single FAT32 partition, MBR (core 3.3.11 FatFs: no exFAT, no GPT).
+User's card is 128GB - fine as FAT32; avoid free-space queries at boot (full
+FAT scan over SPI). Uses: editable watchlists, GPS lockouts
+(later), research capture (pcap, triggered by BOOT button).
+**Settled: SD watchlist REPLACES the built-in one** (user: full
+customization without a rebuild); built-in is the fallback when no card/file.
+**Settled: SD watchlist file format** (user, 2026-10-17):
+- `/ledet/oui.txt`, `/ledet/ssid.txt`; plain text, one entry per line,
+  `#` = comment/disabled. Each file independent (missing ssid.txt ->
+  built-in SSIDs, custom OUIs still used).
+- OUI line: `prefix, label` - prefix length from hex digit count
+  (6/7/9 = MA-L/MA-M/MA-S), `:` separators. No category and no
+  specificity field: category is stored on a hit but never displayed or
+  used in any logic (checked 2026-10-17), and specificity is curation-only.
+  The label already says what the gear is.
+- SSID line: `pattern, label` with `*` shapes: `ABC*` prefix,
+  `*ABC*` contains, `ABC*DEF*` prefix-and-contains, no star = **exact
+  (new match mode)**. Other star placements = bad line. Case-insensitive.
+- **Firmware never writes these files** - no generate-on-boot. Example files
+  ship in the repo for users to copy to the card (with the built-in
+  disabled entries included as `#` lines). Reasons (user): users who
+  don't want SD config never get it; nobody rebuilding firmware is confused
+  by a stale card list overriding their build; user files can't be wiped.
+- **Empty file = no file** -> built-in list. "Empty" = no valid entries
+  (blank, comments only, or all lines bad).
+- Bad lines skipped + counted; boot screen shows source and counts
+  (`SD: 61 OUI, 6 SSID - 2 bad lines`), details to `/ledet/errors.txt`
+  (the one file firmware does write in /ledet).
+- Header line carries the watchlist version; boot screen warns if the card
+  list is older than the firmware's built-in list.
+- Implementation (later): lookups currently read the built-in tables
+  directly, and oui/ssid_table.cpp must stay byte-identical upstream - so SD
+  watchlists probably go upstream too (XIAO display has an SD slot).
+  Example files must be kept in sync with the built-in tables.
+
+**Hit log - DROPPED (user, 2026-10-17):** "I can't imagine a scenario
+where I'd need to look at it" - research uses the capture function. (Was
+designed as start/update/end CSV lines per encounter; would have needed a
+detector.cpp change for per-device frames + table access.) Revisit only
+with GPS, if mapping hit locations turns out to matter. No `log` /
+`log_update_seconds` config keys.
+
+**`config.txt` (settled that it exists, contents being collected):**
+`/ledet/config.txt`, same "missing/empty = defaults" rule as the
+watchlists, never written by firmware. `key = value`, `#` comments; missing
+key = default; unknown/malformed/out-of-range line -> skipped, default
+used, noted in errors.txt. Example file in repo lists every key at its
+default, with the defaults block repeated in the header comment so users
+can restore. **Settled contents (user, 2026-10-17):** `speaker` (on), `day_brightness` (100), `night_brightness` (2),
+`rssi_strong` (-65), `rssi_weak` (-95), `alert_hold` (14s),
+`capture_minutes` (3), **scan schedule/channels/timing** (user overrode
+Claude's "keep in firmware" - defaults + comments mitigate; every value
+range-checked so a typo falls back to default, never an invalid schedule),
+**speaker volume and pitch** (user: "my ears aren't the same as everyone
+else" - defaults = decision 7 values). Boot screen should say when
+config.txt is in effect (avoid the stale-override confusion).
+Also settled (user): `flip_screen` (off; 180deg via MADCTL 0xE8, for
+mounting), `min_rssi` (off; hits below it are logged but don't alert - a
+filter, not a tier), `flash_slow`/`flash_fast` (1000/150ms), `chirp_ms`
+(70), `boot_screen_seconds` (5), band off via schedule (e.g.
+`ble_every = 0` = never; document 5GHz-only in comments). **GPS-related keys (timezone, lockout radius,
+speed gating) are NOT added until GPS is implemented** (user).
+**Settled: SD code lives in this repo only** (user, 2026-10-17). XIAO
+project untouched; port upstream later if wanted. `detector.cpp` stays
+byte-identical anyway: its tunables become runtime globals declared in
+this repo's `config.h` under the same names. `oui_table.cpp` /
+`ssid_table.cpp` lookup code diverges for SD watchlists + exact match,
+but their built-in table rows stay identical so watchlist data still
+copies across. Build order: SD mount + config.txt -> watchlists -> capture
+(hit log dropped).
+**Progress:** step 1 (SD mount + config.txt) built 2026-10-17 - `sdcard.*`,
+`settings.*`, TUNABLE macro in config.h, example `sd_card/ledet/config.txt`,
+`tools/check_sd_examples.py` (example vs config.h defaults; passes, negative
+test fails as it should). Boots clean with a blank card ("SD: no
+config.txt"). **Verified on the unit 2026-10-17** (user): flip_screen,
+boot_screen_seconds applied; bad channel list + unknown key -> "SD: 2 bad
+lines", errors.txt named both with line numbers. FAT file dates read 1979
+(no RTC time yet - GPS later).
+Step 2 (SD watchlists) built 2026-10-17: `watchlist.*`, active-table swap
+in oui/ssid_table.cpp (built-in rows untouched; user staging table skipped
+when an SD OUI list is active), SSID_MATCH_EXACT, WATCHLIST_VERSION,
+examples generated by `tools/check_sd_examples.py --write` (62 active OUI
+= firmware count, 6 SSID). **Verified on the unit** (user): boot screen
+"OUI: 63 from SD / SSID: 1 from SD (old) / SD: 4 bad lines"; exact
+`LEDET-TEST` from card alerted, `LEDET-TEST2` did not (built-in prefix
+rule would have) - card list really replaces built-in. Test hotspot: this
+PC's iwlwifi DOES allow a 5GHz AP (`band a channel 36`) - reliable, use it.
+Step 3 (research capture) built + **verified on the unit 2026-10-17**:
+`capture.*`; detector.cpp/.h gained two tap pointers (`detectorWifiTap`,
+`detectorBleTap`) called at the top of the WiFi/BLE callbacks - the only
+divergence from upstream detector.*; matching/tracking untouched. PSRAM
+ring buffer 64KB (NOSPLIT, SendAcquire, non-blocking) + writer task prio 1,
+fsync every 1s; ring + task created on first capture and kept (avoids a
+use-after-free race with a tap mid-flight) - idle cost 64KB PSRAM, no CPU.
+`capture_minutes` config key (default 3). BOOT button GPIO28 debounced in
+loop. Bottom status strip (`uiSetStrip`, content box shortened to end above
+it). Probe (temp, removed) idle vs capturing: frames/s 3.6-11.2 vs 3.0-10.0
+(no loss), switch gaps 103-120ms both, non-switch gaps 5ms -> 12-17ms (the
+1Hz countdown strip redraw). 75s capture: 0 dropped, 425 WiFi records + 97
+BLE adverts; pcap validated by script (magic/linktype 127, radiotap
+flags+channel+dBm, no malformed records, channels match APs' own IEs).
+Clean boot deleted the stale errors.txt (verified). No Wireshark on this PC.
+
+**Settled: file creation** (user, 2026-10-17): user-input files
+(`oui.txt`, `ssid.txt`, `config.txt`) are never created by firmware -
+users copy them from repo `sd_card/ledet/` (mirrors the card layout; README:
+"copy the ledet folder to the card root"). Output files (captures,
+errors.txt) are created by firmware only once that feature is in use.
+Example `config.txt` ships with **every key commented out**
+(`# day_brightness = 100`) so copying it is a no-op and future default
+changes still reach users; only uncommented keys override. **Every example
+value must equal the firmware default exactly** (uncommenting all = stock
+behavior) - keep in sync with config.h; add a developer-side check (repo/test only, never on the device) comparing the example file to config.h.
+
+**Settled: research capture trigger** (user, 2026-10-17): BOOT button
+starts a 3-minute capture, pressing again stops it early. **No look-back
+buffer** - nothing held in memory before the press (user rejected it: don't
+risk the primary function). Screen shows capture in progress; detection
+and alerts keep running normally during capture. Capture indicator +
+countdown goes at the **bottom** of the screen (user) - free strip below
+the RSSI bar (~y 250-300, inside the border) in both layouts. Rejected: ring buffer
+look-back, press-to-start/press-to-stop with no time limit.
+**Settled: research capture details** (user, 2026-10-17):
+- Files: `/ledet/captures/NNNN_K.pcap` (NNNN = boot number, so one drive's
+  captures group together; K = capture number this boot); BLE in
+  `NNNN_K_ble.csv` (time, addr, addr type, RSSI, name, mfg data hex,
+  service UUIDs - decoded adverts, so CSV not a faked BLE pcap).
+- Classic pcap, radiotap link type (channel + dBm per frame). All mgmt
+  frames heard (beacon/probe req/probe resp), randomized MACs included, full
+  length. Mgmt only - matches the detector's existing promiscuous filter;
+  no filter change. Normal scan schedule kept (no widening).
+- No config.txt setting - the button press is the opt-in; folder created
+  on first capture. No card -> bottom strip `No SD card` for a few seconds.
+- WiFi callback only copies into a small capture-only hand-off buffer
+  (~32-64KB, freed after); a low-prio task writes the card. Overflow ->
+  drop + count, never block. End message `Saved NNNN_K (N dropped)`.
+
 **GPS purpose - settled by user 2026-10-17, don't re-ask:** (1) logging -
-lat/lon on every hit in the SD log; (2) **lockout areas** - suppress alerts
+lat/lon on every hit (hit log since dropped - revisit when GPS lands);
+(2) **lockout areas** - suppress alerts
 inside user-defined zones to stop repeat false alarms from known fixed gear.
 Requirements: optional (device works identically with no GPS attached -
 auto-detected, no setting), self-contained module with built-in antenna,

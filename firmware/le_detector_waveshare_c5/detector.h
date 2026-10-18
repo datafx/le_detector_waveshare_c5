@@ -51,5 +51,16 @@ struct DetectorStatus {
 
 DetectorStatus detectorStatus();
 
+// Waveshare port: research-capture taps. capture.cpp points these at its
+// own functions while a capture runs and clears them afterwards; null means
+// no capture and costs one pointer check per frame/advert. They see every
+// management frame / advert before any filtering, and must only copy -
+// they run in the WiFi and BLE host tasks.
+class BLEAdvertisedDevice;
+typedef void (*DetectorWifiTap)(const void* promiscuousPkt);   // wifi_promiscuous_pkt_t*
+typedef void (*DetectorBleTap)(BLEAdvertisedDevice& advert);
+extern DetectorWifiTap volatile detectorWifiTap;
+extern DetectorBleTap  volatile detectorBleTap;
+
 uint8_t  detectorChannel();
 uint16_t detectorSeenTotal();   // every frame/advert we looked at, matched or not

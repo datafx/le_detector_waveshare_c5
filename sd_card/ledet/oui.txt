@@ -1,0 +1,85 @@
+# le_detector OUI watchlist - version: 2026-10-17
+#
+# One entry per line:  prefix, label
+#   prefix = the first 6, 7 or 9 hex digits of a MAC address (colons
+#            optional), e.g. 00:25:DF. Longer prefixes are the IEEE MA-M
+#            (/28) and MA-S (/36) blocks.
+#   label  = what the screen shows on a match.
+# Lines starting with # are ignored. Entries shipped as "# ..." are in the
+# list but disabled by default (too many false positives) - remove the # to
+# turn one on, add a # to turn one off.
+#
+# Copying this file to the card's /ledet folder REPLACES the firmware's
+# built-in OUI list. As shipped it matches the built-in list exactly. Delete
+# the file (or leave no active lines) to go back to the built-in list.
+# "version" above tells the firmware how old this copy is: newer firmware
+# with a newer built-in list shows "(old)" on the boot screen.
+
+00:00:C3, Harris
+00:04:7D, Motorola Sol
+00:06:EC, Harris
+00:08:B8, EF Johnson
+00:09:BC, Utility Inc
+00:0A:3E, EADS Telecom
+00:0D:4F, Kenwood
+00:0D:CA, Tait
+00:0E:06, Team Simoco
+00:12:E0, Codan
+00:14:3E, AirLink
+00:14:91, Codan Radio
+00:15:94, BIXOLON
+00:16:ED, Utility Inc
+00:17:28, Selex Comms
+00:17:3D, Neology
+00:17:F3, Harris
+00:18:85, Motorola Sol
+00:1A:08, Simoco
+00:1C:3C, Seon Design
+00:1D:96, WatchGuard Vid
+00:1E:96, Sepura
+00:1F:92, Motorola Sol
+00:1F:9C, Havis
+00:22:AF, Safety Vision
+00:23:B9, Airbus D&S
+00:23:BD, Digital Ally
+00:24:39, Digital Barr
+00:24:E6, In Motion Tech
+00:25:DF, Axon
+00:26:B3, Thales
+# 00:30:44, CradlePoint
+00:30:7E, Redflex
+00:90:C7, Icom
+00:A0:D5, Sierra Wireless
+00:BF:15, Genetec
+# 00:E0:1C, CradlePoint
+08:3C:03:0, Federal Signal
+0C:BF:15, Genetec
+# 0C:FE:7B, Vantiva
+10:74:6F, Motorola Sol
+1C:82:59:D, Stalker Radar
+28:A3:31, Sierra Wireless
+38:73:EA:0, L3 MobileVis
+48:46:8D, Zepcam
+4C:CC:34, Motorola Sol
+50:13:9D, Sierra Wireless
+58:94:CF, Vertex Std LMR
+58:E8:76:C, Kustom Signals
+64:69:BC, Hytera
+64:CE:6E, Sierra Wireless
+68:DA:73:B, Gamber-Johnson
+6C:18:11, Decatur Elec
+70:B3:D5:1C:5, ELSAG
+70:B3:D5:88:A, Perceptics
+84:DB:2F, Sierra Wireless
+9C:06:6E, Hytera
+# 9C:83:BF, PRO-VISION
+9C:86:2B, Motorola Sol
+# A8:C0:EA, Pepwave
+B8:E2:8C, Motorola Sol
+BC:AD:90, Kymeta
+CC:93:4A, Sierra Wireless
+# D4:13:F8, Peplink
+E0:DA:DC, JVC Kenwood
+E4:1E:0A:B, Safety Vision
+F4:69:D5:7, Rosco Vision
+FC:01:9E, VieVu

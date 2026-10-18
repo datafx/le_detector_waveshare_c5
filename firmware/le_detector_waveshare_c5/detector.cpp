@@ -44,6 +44,9 @@ static uint32_t      s_lastHitMs = 0;
 
 static WifiBand s_band = BAND_5G;
 
+DetectorWifiTap volatile detectorWifiTap = nullptr;
+DetectorBleTap  volatile detectorBleTap  = nullptr;
+
 static bool s_wifiUp = false;
 static bool s_bleUp  = false;
 
@@ -168,6 +171,9 @@ static bool extractSsid(const uint8_t* frame, int len, uint8_t subtype,
 
 static void IRAM_ATTR wifiSnifferCb(void* buff, wifi_promiscuous_pkt_type_t type) {
     if (type != WIFI_PKT_MGMT) return;
+
+    DetectorWifiTap tap = detectorWifiTap;   // research capture, if running
+    if (tap) tap(buff);
 
     const wifi_promiscuous_pkt_t* ppkt = (wifi_promiscuous_pkt_t*)buff;
     const uint8_t* frame = ppkt->payload;
@@ -297,6 +303,9 @@ static BLEScan* s_bleScan = nullptr;
 
 class DetectorAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) override {
+        DetectorBleTap tap = detectorBleTap;   // research capture, if running
+        if (tap) tap(advertisedDevice);
+
         // Address type 0x00 is "Public Device Address" per the Bluetooth
         // Core Spec, same numeric value under both Bluedroid and NimBLE.
         // Random / resolvable-private addresses (anything else) have

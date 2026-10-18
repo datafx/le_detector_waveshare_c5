@@ -200,7 +200,20 @@ static const OuiEntry OUI_TABLE[] = {
 
 static const uint16_t OUI_COUNT = sizeof(OUI_TABLE) / sizeof(OUI_TABLE[0]);
 
-uint16_t ouiTableSize() { return OUI_COUNT; }
+// Waveshare port: the table actually searched. Starts as the built-in one;
+// ouiSetTable() swaps in an SD card list, which replaces it entirely
+// (user staging table included).
+static const OuiEntry* s_table   = OUI_TABLE;
+static uint16_t        s_count   = OUI_COUNT;
+static bool            s_builtin = true;
+
+void ouiSetTable(const OuiEntry* table, uint16_t count) {
+    s_table   = table;
+    s_count   = count;
+    s_builtin = false;
+}
+
+uint16_t ouiTableSize() { return s_count; }
 
 static int cmp3(const uint8_t* a, const uint8_t* b) {
     for (uint8_t i = 0; i < 3; i++) {
@@ -220,24 +233,24 @@ static bool matches(const OuiEntry& e, const uint8_t mac[6]) {
 }
 
 const OuiEntry* ouiLookup(const uint8_t mac[6]) {
-    int lo = 0, hi = (int)OUI_COUNT - 1, found = -1;
+    int lo = 0, hi = (int)s_count - 1, found = -1;
     while (lo <= hi) {
         int mid = (lo + hi) / 2;
-        int c = cmp3(mac, OUI_TABLE[mid].prefix);
+        int c = cmp3(mac, s_table[mid].prefix);
         if (c == 0) { found = mid; break; }
         if (c < 0)  hi = mid - 1;
         else        lo = mid + 1;
     }
-    if (found < 0) return ouiUserLookup(mac);
+    if (found < 0) return s_builtin ? ouiUserLookup(mac) : nullptr;
 
     // Several vendors can share the same three bytes when a block is carved
     // into /28 or /36 assignments, so walk the whole run.
     int start = found;
-    while (start > 0 && cmp3(OUI_TABLE[start - 1].prefix, OUI_TABLE[found].prefix) == 0) start--;
+    while (start > 0 && cmp3(s_table[start - 1].prefix, s_table[found].prefix) == 0) start--;
 
-    for (int i = start; i < (int)OUI_COUNT; i++) {
-        if (cmp3(OUI_TABLE[i].prefix, mac) != 0) break;
-        if (matches(OUI_TABLE[i], mac)) return &OUI_TABLE[i];
+    for (int i = start; i < (int)s_count; i++) {
+        if (cmp3(s_table[i].prefix, mac) != 0) break;
+        if (matches(s_table[i], mac)) return &s_table[i];
     }
-    return ouiUserLookup(mac);
+    return s_builtin ? ouiUserLookup(mac) : nullptr;
 }

@@ -45,4 +45,9 @@ struct OuiEntry {
 // Returns nullptr when the MAC's prefix is not on the watchlist.
 const OuiEntry* ouiLookup(const uint8_t mac[6]);
 
-uint16_t ouiTableSize();
+uint16_t ouiTableSize();   // entries in the active table
+
+// Waveshare port: replace the built-in table (and the user staging table)
+// with one loaded from the SD card. `table` must be sorted the same way as
+// OUI_TABLE and stay valid forever. Call before scanning starts.
+void ouiSetTable(const OuiEntry* table, uint16_t count);

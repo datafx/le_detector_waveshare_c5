@@ -21,6 +21,7 @@
 #include "display.h"
 #include "oui_table.h"
 #include "ssid_table.h"
+#include "watchlist.h"
 
 static Display tft(LCD_WIDTH, LCD_HEIGHT);
 
@@ -45,7 +46,17 @@ void uiInit() {
     tft.setTextWrap(false);
 }
 
-void uiBootScreen() {
+void uiSetFlipped(bool flipped) {
+    tft.setFlipped(flipped);
+}
+
+// "OUI: 61 from SD (old)" - where a watchlist came from, and whether a card
+// list predates the firmware's built-in one.
+static void watchlistLine(char* out, size_t n, const char* what, unsigned count, bool fromSd, bool old) {
+    snprintf(out, n, "%s: %u %s%s", what, count, fromSd ? "from SD" : "built-in", old ? " (old)" : "");
+}
+
+void uiBootScreen(const char* sdLine, const WatchlistResult& wl) {
     tft.fillScreen(COLOR_BG);
     tft.setTextColor(COLOR_TEXT);
 
@@ -60,17 +71,18 @@ void uiBootScreen() {
     tft.setTextSize(3);
     const uint16_t LINE_H = 32;
 
-    snprintf(line, sizeof(line), "OUI entries: %u", (unsigned)ouiTableSize());
+    watchlistLine(line, sizeof(line), "OUI", ouiTableSize(), wl.ouiFromSd, wl.ouiOld);
     tft.setCursor(MARGIN, y);
     tft.println(line);
     y += LINE_H;
 
-    snprintf(line, sizeof(line), "SSID entries: %u", (unsigned)ssidTableSize());
+    watchlistLine(line, sizeof(line), "SSID", ssidTableSize(), wl.ssidFromSd, wl.ssidOld);
     tft.setCursor(MARGIN, y);
     tft.println(line);
     y += LINE_H;
 
-    snprintf(line, sizeof(line), "BLE scan: %s", BLE_SCAN_PASSIVE ? "passive" : "ACTIVE");
+    if (BLE_EVERY_N_SWEEPS == 0) snprintf(line, sizeof(line), "BLE scan: off");
+    else snprintf(line, sizeof(line), "BLE scan: %s", BLE_SCAN_PASSIVE ? "passive" : "ACTIVE");
     tft.setCursor(MARGIN, y);
     tft.println(line);
     y += LINE_H;
@@ -83,16 +95,21 @@ void uiBootScreen() {
     tft.println(line);
     y += LINE_H;
 
-    snprintf(line, sizeof(line), "WiFi 2.4GHz: %u ch (tok)", (unsigned)WIFI_2G_CHANNEL_COUNT);
+    if (WIFI_2G_EVERY_N_SWEEPS == 0) snprintf(line, sizeof(line), "WiFi 2.4GHz: off");
+    else snprintf(line, sizeof(line), "WiFi 2.4GHz: %u ch (tok)", (unsigned)WIFI_2G_CHANNEL_COUNT);
     tft.setCursor(MARGIN, y);
     tft.println(line);
+    y += LINE_H;
+
+    tft.setCursor(MARGIN, y);
+    tft.println(sdLine);
     y += LINE_H;
 
     tft.setCursor(MARGIN, y);
     tft.println("Starting...");
     tft.flushAll();
 
-    delay(5000);
+    delay(BOOT_SCREEN_MS);
     tft.fillScreen(COLOR_BG);
     tft.flushAll();
 }
@@ -126,6 +143,11 @@ static uint8_t fitTextSize(const char* text, uint8_t maxSize, uint16_t maxWidth)
 }
 
 static const uint8_t HEADER_H = 44;
+
+// Bottom status strip, below the RSSI bar and inside the border. The content
+// box stops above it so content redraws never wipe it.
+static const uint8_t STRIP_H = 34;
+static int16_t stripTop() { return screenH() - (MARGIN - 4) - STRIP_H; }
 
 // Header and content are redrawn independently, each only when its own
 // inputs change. Phase label ticks over every few seconds (much more often
@@ -183,7 +205,7 @@ static void drawContent(const DetectorStatus& st) {
 
     const int16_t cx = MARGIN - 4, cy = contentTop - 6;
     const int16_t cw = screenW() - 2 * (MARGIN - 4);
-    const int16_t ch = screenH() - (contentTop - 6) - (MARGIN - 4);
+    const int16_t ch = stripTop() - (contentTop - 6);
     tft.fillRect(cx, cy, cw, ch, COLOR_BG);
 
     if (st.best) {
@@ -283,4 +305,29 @@ void uiRender(const DetectorStatus& st, const char* phaseLabel) {
         s_lastBest  = st.best;
         drawContent(st);
     }
+}
+
+void uiSetStrip(const char* text, uint16_t color, bool dot) {
+    static char     s_lastText[32] = "";
+    static uint16_t s_lastColor = 0;
+    static bool     s_lastDot = false;
+    if (strcmp(text, s_lastText) == 0 && color == s_lastColor && dot == s_lastDot) return;
+    strncpy(s_lastText, text, sizeof(s_lastText) - 1);
+    s_lastColor = color;
+    s_lastDot = dot;
+
+    const int16_t x = MARGIN - 4, y = stripTop(), w = screenW() - 2 * (MARGIN - 4);
+    tft.fillRect(x, y, w, STRIP_H, COLOR_BG);
+    int16_t tx = MARGIN + 4;
+    if (dot) {
+        tft.fillCircle(tx + 9, y + STRIP_H / 2, 9, COLOR_ALERT);
+        tx += 28;
+    }
+    if (text[0]) {
+        tft.setTextSize(3);
+        tft.setTextColor(color);
+        tft.setCursor(tx, y + 5);
+        tft.print(text);
+    }
+    tft.flush(x, y, w, STRIP_H);
 }

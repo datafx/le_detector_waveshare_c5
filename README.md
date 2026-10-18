@@ -19,6 +19,7 @@ are identical to the XIAO build.
 | Right-angle IPEX (U.FL) → **RP-SMA** pigtail | Connects the board's antenna socket to the external antenna. Must be **RP-SMA**, not plain SMA, to mate with the Alfa | search "U.FL to RP-SMA right angle pigtail" |
 | Alfa APA-M25 dual-band antenna | 8 dBi @2.4GHz / 10 dBi @5GHz, RP-SMA | [Alfa Network](https://alfa-network.eu/apa-m25) |
 | USB-C cable | Power + programming | |
+| microSD card (optional) | Custom settings and watchlists, and research captures. Not needed for normal use. Any size, formatted FAT32 (see [SD card](#sd-card-optional)) | |
 
 **Attach the antenna before powering on.** Range is meaningless without it.
 
@@ -113,7 +114,9 @@ that went wrong during bring-up:
 
 ## What you'll see
 
-A boot screen with watchlist sizes for 5 seconds, then the main screen:
+A boot screen for 5 seconds showing the watchlist sizes (and whether they
+came from the SD card), the scan setup and the SD card status, then the
+main screen:
 
 - **Header:** `ALL CLEAR`, or a red `** ALERT **`, plus which radio phase
   is listening right now (5GHz WiFi / 2.4GHz WiFi / BLE).
@@ -135,10 +138,116 @@ The whole screen is one button, so there's nothing to aim at while driving:
   (2%) brightness. It changes while your finger is still down. Every boot
   starts at full brightness.
 
+### BOOT button: research capture
+
+Press **BOOT** (the button on the side) to record everything the scanner
+hears for 3 minutes to the SD card - for when you pass police gear that
+*didn't* alert and want to find out why. Press it again to stop early. See
+[Research capture](#research-capture).
+
+### Testing the alert
+
 To check the alert path without real gear, broadcast a WiFi network named
-`LEDET-TEST` from a phone or laptop. It's a built-in test entry. A phone
-hotspot works best: some laptop WiFi cards beacon irregularly in hotspot
-mode, so a 2.4GHz laptop hotspot may alert once and then only now and then.
+`LEDET-TEST` from a phone or laptop. It's a built-in test entry. Use a
+**5GHz** hotspot if you can (on Linux:
+`nmcli device wifi hotspot ifname wlan0 band a channel 36 ssid LEDET-TEST password <8+ chars>`):
+5GHz is swept every ~3 seconds, so it alerts almost immediately and stays
+alerted. 2.4GHz is only checked about every 25 seconds, and some laptop WiFi
+cards beacon irregularly in hotspot mode, so a 2.4GHz laptop hotspot may
+alert only now and then.
+
+## SD card (optional)
+
+Everything works without a card. With one, you can change settings and
+watchlists without rebuilding the firmware, and make research captures.
+
+**Card:** any microSD card formatted **FAT32** with a normal (MBR) partition
+table. exFAT, which most cards over 32GB ship with, doesn't work - reformat
+it first. Size doesn't matter. To format (this erases the card):
+
+- **Linux:** find the card with `lsblk`, then
+  `sudo parted /dev/sdX --script mklabel msdos mkpart primary fat32 1MiB 100%`
+  and `sudo mkfs.vfat -F 32 -n LEDET /dev/sdX1`
+- **Windows:** Format, File system FAT32 (Windows only offers this up to
+  32GB; use a third-party FAT32 formatter for bigger cards)
+- **macOS:** Disk Utility, Erase, Format "MS-DOS (FAT)", Scheme "Master Boot
+  Record"
+
+**Setup:** copy the [`sd_card/ledet`](sd_card/ledet) folder from this repo
+to the root of the card, so the card has `/ledet/config.txt`,
+`/ledet/oui.txt` and `/ledet/ssid.txt`. The card is read once at boot.
+
+The firmware **never creates or changes these files** - it only reads them.
+Delete one to go back to the built-in behaviour for that part. As shipped,
+all three behave exactly like the built-in firmware.
+
+The boot screen's SD line shows what happened: `SD: none (defaults)`,
+`SD: no config.txt`, `SD: config (defaults)`, `SD: config, 3 set`, or
+`SD: 2 bad lines`.
+
+### config.txt - settings
+
+Every setting is listed with its stock value, commented out with `#`. To
+change one, remove the `#` and edit the value; put the `#` back to return to
+stock. There are settings for the speaker (on/off, volume, pitch, chirp
+length), the display (day/night brightness, flip upside down, boot screen
+time), alerts (signal range, a minimum signal to alert on, hold time, flash
+rates), the capture length, and the full scan schedule (channels, timing,
+and turning the BLE or 2.4GHz checks off). Each one is explained in the
+file.
+
+### oui.txt / ssid.txt - custom watchlists
+
+A watchlist file on the card **replaces** the built-in list (the two files
+are independent). As shipped they're copies of the built-in lists, with the
+disabled-by-default entries included as `#` lines.
+
+```
+# oui.txt: prefix, label
+00:25:DF, Axon
+70:B3:D5:1C:5, ELSAG          <- 7 or 9 hex digits for smaller IEEE blocks
+
+# ssid.txt: pattern, label
+PSP-MVR*, PSP in-car video    <- starts with
+*FLEET*, Example              <- contains
+IBR*-mobile*, Example         <- starts with IBR, then contains -mobile
+MyNetwork, Example            <- exact name
+```
+
+SSID matching ignores upper/lower case. A file with no active entries counts
+as no file, so a mangled file can't silently turn detection off. If a card
+list is older than the firmware's built-in list, the boot screen shows
+`(old)` next to it - copy the new file from the repo to pick up the changes.
+
+### Bad lines
+
+A line with a mistake is skipped (a bad setting keeps its default), and
+`/ledet/errors.txt` lists each one with its line number and what's wrong,
+e.g. `config.txt line 72: wifi5g_channels: '37' is not a valid channel`.
+The file is rewritten on every boot and deleted once everything is clean.
+
+### Research capture
+
+Press **BOOT** to record for 3 minutes (`capture_minutes` in config.txt),
+press again to stop early. The bottom of the screen shows a red dot and a
+countdown with the number of frames recorded, then `Saved 0001_1` when
+done. Detection and alerts keep working normally during a capture.
+
+Files go to `/ledet/captures/`:
+
+- `NNNN_K.pcap` - every WiFi management frame heard (beacons, probe
+  requests and responses), with channel and signal strength. Opens in
+  Wireshark or Kismet.
+- `NNNN_K_ble.csv` - every BLE advert heard: address, address type, signal,
+  name, manufacturer data, service UUIDs and the raw advert bytes.
+
+`NNNN` counts up per boot (so one drive's captures sort together) and `K`
+per capture. The capture records what the scanner hears on its normal
+5GHz-heavy schedule, so it sees less than a laptop running Kismet with a
+dedicated adapter - it's for tagging an encounter on the spot. There's no
+clock without GPS, so timestamps are time since boot. If the card can't keep
+up, frames are dropped rather than slowing detection, and the end message
+says how many (e.g. `Saved 0001_1 (3 drop)`).
 
 ## Watchlist
 
@@ -157,8 +266,10 @@ real hits (commented out, not deleted): **CradlePoint** (via the
 `EXCLUDE_VENDOR_CRADLEPOINT` toggle at the top of `oui_table.cpp`),
 **Peplink**, **Pepwave**, **Vantiva**, **PRO-VISION**.
 
-To try a local addition, add it to `user_oui_table.cpp`. Watchlist changes
-meant to be kept go into
+To change the watchlist without rebuilding, use the
+[SD card](#ouitxt--ssidtxt---custom-watchlists) files. To try a local
+addition in the firmware itself, add it to `user_oui_table.cpp`. Watchlist
+changes meant to be kept go into
 [`le_detector_c5`](https://github.com/datafx/le_detector_c5) first, which
 has the watchlist unit test (`test/test_oui.cpp`), then get copied here.
 
@@ -236,24 +347,27 @@ starting points to tune, not a measured optimum.
 - **Directed probe requests are fading.** Modern phones mostly send
   wildcard probes with no SSID, so probe-based SSID matching mainly catches
   older or embedded devices. Beacon matching is unaffected.
-- **No SD card or GPS yet.** The board's microSD slot isn't used; the
-  watchlists are compiled in and nothing is logged.
+- **No GPS yet.** Captures have no real date or time, only time since boot,
+  and there are no location-based features.
 
 ## Tuning
 
-Everything is in `firmware/le_detector_waveshare_c5/config.h`: band and
-channel lists, sweep cadence, the RSSI range that maps to slow/fast
-flashing (`RSSI_WEAK`/`RSSI_STRONG`), flash rates, alert hold time, speaker
-pitch and volume, day/night backlight levels (`LCD_BACKLIGHT_PCT`,
-`LCD_BACKLIGHT_NIGHT_PCT`), long-press time (`TOUCH_LONG_PRESS_MS`), and `BUZZER_ENABLED` to silence the speaker for bench
-testing.
+Most settings can be changed from the SD card's
+[`config.txt`](#configtxt---settings) without rebuilding. The stock values
+live in `firmware/le_detector_waveshare_c5/config.h`, along with a few
+build-only ones such as the long-press time (`TOUCH_LONG_PRESS_MS`).
+
+If you change a default in `config.h` or a built-in watchlist row, run
+`python3 tools/check_sd_examples.py` - it checks that the example SD files
+still match the firmware (`--write` regenerates `oui.txt`/`ssid.txt`).
 
 ## Contributing
 
 The watchlist is only as good as the field data behind it, and the most
 useful thing you can contribute is **[Kismet](https://www.kismetwireless.net/)
 captures recorded near police vehicles**. If you can make some, get in
-touch and I'll analyze them for OUIs and SSIDs worth adding.
+touch and I'll analyze them for OUIs and SSIDs worth adding. Research
+captures from this device (the BOOT button) are welcome too.
 
 - **More than one sample, from different areas, is much more useful than
   one.** A single capture can't separate a department's gear from whatever

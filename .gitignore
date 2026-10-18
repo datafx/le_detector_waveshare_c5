@@ -3,3 +3,11 @@ build/
 *.bin
 *.elf
 *.map
+__pycache__/
+*.pyc
+# Research captures and SD output - personal RF data, never commit
+*.pcap
+*.pcapng
+*_ble.csv
+captures/
+errors.txt

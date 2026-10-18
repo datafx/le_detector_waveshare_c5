@@ -108,6 +108,12 @@ bool Display::begin() {
     return true;
 }
 
+void Display::setFlipped(bool flipped) {
+    if (!s_io) return;
+    const uint8_t madctl = flipped ? LCD_MADCTL_FLIPPED : LCD_MADCTL;
+    cmd(0x36, &madctl, 1);
+}
+
 void Display::flush(int16_t x, int16_t y, int16_t w, int16_t h) {
     if (!s_io) return;
 

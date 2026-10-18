@@ -18,4 +18,8 @@ public:
     // Blocks until the transfer is done.
     void flush(int16_t x, int16_t y, int16_t w, int16_t h);
     void flushAll() { flush(0, 0, width(), height()); }
+
+    // Rotate the image 180 degrees (unit mounted upside down). Takes effect
+    // on the next flush; doesn't touch the canvas.
+    void setFlipped(bool flipped);
 };
